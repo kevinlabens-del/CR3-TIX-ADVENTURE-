@@ -6,7 +6,7 @@ import { loadProgress, saveLevelResult, totalStars, type ProgressRecords } from 
 
 const W = 1280;
 const H = 720;
-const APP_VERSION = "17.0.0";
+const APP_VERSION = "18.0.0";
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const BOSS_SPRITES = [
   "game/bosses/boss-01-kryon-prime.png",
@@ -168,7 +168,7 @@ export default function AdventureGame() {
   }, [changeStatus]);
 
   useEffect(() => {
-    const displayMode = window.matchMedia("(display-mode: standalone)");
+    const installedDisplayModes = ["fullscreen", "standalone", "minimal-ui"].map(mode => window.matchMedia(`(display-mode: ${mode})`));
     const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
     let updateTimer: number | undefined;
     let disposed = false;
@@ -176,7 +176,7 @@ export default function AdventureGame() {
     let controllerWasPresent = Boolean(navigator.serviceWorker?.controller);
     let registeredWorker: ServiceWorkerRegistration | null = null;
     let updateFoundHandler: (() => void) | null = null;
-    const syncInstalledState = () => setIsInstalled(displayMode.matches || navigatorWithStandalone.standalone === true);
+    const syncInstalledState = () => setIsInstalled(installedDisplayModes.some(query => query.matches) || navigatorWithStandalone.standalone === true);
     const reportUpdate = (message: string) => {
       if (!disposed) setUpdateMessage(message);
     };
@@ -226,7 +226,7 @@ export default function AdventureGame() {
     const onOnline = () => void checkRegistration();
 
     syncInstalledState();
-    displayMode.addEventListener?.("change", syncInstalledState);
+    installedDisplayModes.forEach(query => query.addEventListener?.("change", syncInstalledState));
     window.addEventListener("beforeinstallprompt", captureInstallPrompt);
     window.addEventListener("appinstalled", confirmInstallation);
 
@@ -266,7 +266,7 @@ export default function AdventureGame() {
       if (updateTimer !== undefined) window.clearInterval(updateTimer);
       if (registeredWorker && updateFoundHandler) registeredWorker.removeEventListener("updatefound", updateFoundHandler);
       serviceWorkerRegistrationRef.current = null;
-      displayMode.removeEventListener?.("change", syncInstalledState);
+      installedDisplayModes.forEach(query => query.removeEventListener?.("change", syncInstalledState));
       window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
       window.removeEventListener("appinstalled", confirmInstallation);
       document.removeEventListener("visibilitychange", onPageVisible);
@@ -1284,7 +1284,7 @@ export default function AdventureGame() {
           {status !== "playing" && <div className={`game-overlay ${status === "menu" ? "main-menu-overlay" : ""}`}>
             {status === "menu" && <div className="mobile-game-menu">
               <header className="mobile-menu-header">
-                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 17 · AUTO UPDATE</small><strong>CR3@TIX ADVENTURE</strong></div></div>
+                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 18 · ANDROID FIX</small><strong>CR3@TIX ADVENTURE</strong></div></div>
                 <div className="credit-wallet"><span>◆</span><strong>{credits}</strong><small>CRÉDITS</small></div>
               </header>
 

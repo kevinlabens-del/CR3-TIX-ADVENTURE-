@@ -1,8 +1,8 @@
-const APP_VERSION = "17.0.0";
-const CACHE_NAME = "cr3atix-adventure-v17";
+const APP_VERSION = "18.0.0";
+const CACHE_NAME = "cr3atix-adventure-v18";
 const APP_ROOT = new URL("./", self.registration.scope).toString();
 const CORE_PATHS = [
-  "", "manifest.webmanifest", "favicon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png",
+  "", "manifest.webmanifest", "manifest-github.webmanifest", "favicon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png",
   "game/hero-sprite.png", "game/hero.png", "game/enemy.png",
   ...Array.from({ length: 10 }, (_, index) => `game/worlds/world-${String(index + 1).padStart(2, "0")}.webp`),
   "game/bosses/boss-01-kryon-prime.png", "game/bosses/boss-02-vulkar.png", "game/bosses/boss-03-selene-x.png",
