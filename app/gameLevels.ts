@@ -1,6 +1,6 @@
 export type Platform = { x: number; y: number; w: number; h: number };
 
-export type EnemyKind = "crawler" | "hopper" | "flyer" | "charger" | "tank" | "boss";
+export type EnemyKind = "crawler" | "hopper" | "flyer" | "charger" | "tank" | "shooter" | "shielder" | "exploder" | "sentinel" | "boss";
 export type MissionType = "collect" | "hunt" | "sprint" | "beacons" | "assault" | "survive" | "escape" | "keys" | "escort" | "puzzle" | "defend" | "stealth" | "chase" | "waves" | "boss";
 export type DecorKind = "embers" | "mist" | "stars" | "rain" | "dust" | "snow" | "sparks" | "void" | "storm" | "ash";
 export type HazardKind = "spikes" | "lava" | "laser";
@@ -83,8 +83,8 @@ const THEMES: Theme[] = [
 ];
 
 const BOSS_NAMES = ["KRYON PRIME", "VULKAR", "SELENE-X", "MYCORA", "GLACIUS", "HELIOX", "ABYSSUS", "ARCHIVOR", "TEMPESTOR", "NOX IMPERATOR"];
-const MISSION_ORDER: MissionType[] = ["escape", "keys", "hunt", "escort", "puzzle", "defend", "stealth", "chase", "waves", "assault"];
-const ENEMY_ORDER: EnemyKind[] = ["crawler", "hopper", "flyer", "charger", "tank"];
+const MISSION_ROTATION: MissionType[] = ["escape", "keys", "hunt", "escort", "puzzle", "defend", "stealth", "chase", "waves", "assault", "collect", "sprint", "beacons", "survive"];
+const ENEMY_ORDER: EnemyKind[] = ["crawler", "hopper", "flyer", "charger", "tank", "shooter", "shielder", "exploder", "sentinel"];
 const GROUND = 620;
 
 function seeded(seed: number) {
@@ -100,44 +100,44 @@ function seeded(seed: number) {
 
 function makeMission(type: MissionType, chapter: number, stage: number, orbCount: number, enemyCount: number, beaconCount: number, worldWidth: number, keyCount = 0, switchCount = 0, bossName?: string): MissionDefinition {
   if (type === "collect") {
-    const target = Math.min(orbCount, 12 + chapter + (stage % 4));
+    const target = Math.min(orbCount, 16 + chapter * 2 + (stage % 4));
     return { type, label: "FRAGMENTS", target, description: `Récupère ${target} fragments d’énergie puis atteins le portail.` };
   }
   if (type === "hunt") {
-    const target = Math.min(enemyCount, 7 + Math.floor(chapter * .75) + (stage % 3));
+    const target = Math.min(enemyCount, 10 + chapter + (stage % 3));
     return { type, label: "ENNEMIS", target, description: `Neutralise ${target} ennemis puis rejoins le portail.` };
   }
   if (type === "sprint") {
-    const timeLimit = Math.round(worldWidth / 155 + 22 + chapter);
+    const timeLimit = Math.round(worldWidth / 150 + 30 + chapter);
     return { type, label: "CHRONO", target: timeLimit, timeLimit, description: `Atteins le portail en moins de ${timeLimit} secondes.` };
   }
   if (type === "beacons") {
     return { type, label: "BALISES", target: beaconCount, description: `Active les ${beaconCount} balises de contrôle avant le portail.` };
   }
   if (type === "assault") {
-    const target = Math.min(orbCount, 9 + Math.floor(chapter * .8));
-    const secondaryTarget = Math.min(enemyCount, 4 + Math.floor(chapter * .65));
+    const target = Math.min(orbCount, 13 + chapter);
+    const secondaryTarget = Math.min(enemyCount, 7 + Math.floor(chapter * .8));
     return { type, label: "ASSAUT", target, secondaryTarget, description: `Collecte ${target} fragments et élimine ${secondaryTarget} ennemis.` };
   }
   if (type === "survive") {
-    const timeLimit = 38 + chapter * 3 + (stage % 3) * 4;
+    const timeLimit = 55 + chapter * 3 + (stage % 3) * 5;
     return { type, label: "SURVIE", target: timeLimit, timeLimit, description: `Résiste pendant ${timeLimit} secondes puis gagne le portail.` };
   }
   if (type === "escape") {
-    const timeLimit = Math.round(worldWidth / 150 + 28 + chapter);
+    const timeLimit = Math.round(worldWidth / 145 + 36 + chapter);
     return { type, label: "ÉVASION", target: timeLimit, timeLimit, description: `Échappe à l’effondrement et atteins le portail en moins de ${timeLimit} secondes.` };
   }
   if (type === "keys") return { type, label: "CLÉS", target: keyCount, description: `Trouve les ${keyCount} clés quantiques cachées puis ouvre le portail.` };
   if (type === "escort") return { type, label: "ESCORTE", target: 100, description: "Protège le drone allié et conduis-le jusqu’à la zone d’extraction." };
   if (type === "puzzle") return { type, label: "MÉCANISMES", target: switchCount, description: `Active les ${switchCount} mécanismes dans le bon ordre avec ton attaque.` };
   if (type === "defend") {
-    const timeLimit = 34 + chapter * 3;
+    const timeLimit = 52 + chapter * 3;
     return { type, label: "DÉFENSE", target: timeLimit, timeLimit, description: `Tiens la zone de défense pendant ${timeLimit} secondes.` };
   }
   if (type === "stealth") return { type, label: "FURTIVITÉ", target: 3, description: "Traverse le secteur sans déclencher trois alertes ennemies." };
   if (type === "chase") return { type, label: "POURSUITE", target: 1, description: "Rattrape le drone voleur avant qu’il ne franchisse le portail." };
   if (type === "waves") {
-    const target = Math.min(enemyCount, 9 + chapter);
+    const target = Math.min(enemyCount, 14 + Math.floor(chapter * 1.4));
     return { type, label: "VAGUES", target, description: `Repousse ${target} ennemis dans l’arène de combat.` };
   }
   return { type: "boss", label: "BOSS", target: 1, description: `Vaincs ${bossName ?? "le gardien"} pour libérer le monde.` };
@@ -147,7 +147,7 @@ function createNormalLevel(chapter: number, stage: number, theme: Theme): LevelD
   const id = chapter * 11 + stage + 1;
   const seed = 9109 + id * 7919;
   const random = seeded(seed);
-  const chunks = 12 + Math.floor(chapter * .65) + (stage % 4);
+  const chunks = 16 + Math.floor(chapter * .75) + (stage % 5);
   const chunkWidth = 760;
   const worldWidth = (chunks + 1) * chunkWidth;
   const platforms: Platform[] = [];
@@ -216,21 +216,24 @@ function createNormalLevel(chapter: number, stage: number, theme: Theme): LevelD
     x: Math.floor(worldWidth * (.38 + index * .29)), y: 500, w: 54, h: 120, hp: 3 + Math.floor(chapter / 3), secret: index === 1,
   }));
 
-  const availableKinds = ENEMY_ORDER.slice(0, Math.min(ENEMY_ORDER.length, 2 + Math.floor(chapter / 2)));
+  const availableKinds = ENEMY_ORDER.slice(0, Math.min(ENEMY_ORDER.length, 3 + chapter));
   const enemies: EnemySpawn[] = [];
   for (let chunk = 1; chunk <= chunks; chunk++) {
     const range = groundRanges[chunk];
     const kind = availableKinds[(chunk + stage + chapter) % availableKinds.length];
-    const enemyY = kind === "flyer" ? 365 : kind === "tank" ? 548 : 560;
-    enemies.push({ x: range.start + 125, y: enemyY, minX: range.start + 40, maxX: Math.max(range.start + 230, range.end - 25), speed: 74 + chapter * 8 + stage * 3, kind, hp: kind === "tank" ? 2 : 1 });
+    const enemyY = kind === "flyer" || kind === "sentinel" ? 365 : kind === "tank" || kind === "shielder" ? 548 : 560;
+    const enemyHp = kind === "tank" ? 3 : kind === "shielder" ? 2 : 1;
+    enemies.push({ x: range.start + 125, y: enemyY, minX: range.start + 40, maxX: Math.max(range.start + 230, range.end - 25), speed: 74 + chapter * 8 + stage * 3, kind, hp: enemyHp });
     if (chapter > 4 && chunk % 3 === 0) {
       const secondKind = availableKinds[(chunk + stage + 2) % availableKinds.length];
-      enemies.push({ x: range.start + 340, y: secondKind === "flyer" ? 320 : 560, minX: range.start + 250, maxX: range.end - 20, speed: 88 + chapter * 7, kind: secondKind, hp: secondKind === "tank" ? 2 : 1 });
+      const secondY = secondKind === "flyer" || secondKind === "sentinel" ? 320 : secondKind === "tank" || secondKind === "shielder" ? 548 : 560;
+      const secondHp = secondKind === "tank" ? 3 : secondKind === "shielder" ? 2 : 1;
+      enemies.push({ x: range.start + 340, y: secondY, minX: range.start + 250, maxX: range.end - 20, speed: 88 + chapter * 7, kind: secondKind, hp: secondHp });
     }
   }
 
   const checkpoints = [.2, .4, .6, .8].map(progress => Math.floor(chunks * progress) * chunkWidth + 80);
-  const missionType = MISSION_ORDER[stage];
+  const missionType = MISSION_ROTATION[(stage + chapter * 3) % MISSION_ROTATION.length];
   const mission = makeMission(missionType, chapter, stage, orbs.length, enemies.length, checkpoints.length, worldWidth, keys.length, switches.length);
   const hue = theme.hue + (stage - 4) * 5;
   const brightness = (0.76 + ((stage + chapter) % 5) * 0.045).toFixed(2);
@@ -270,7 +273,7 @@ function createBossLevel(chapter: number, theme: Theme): LevelDefinition {
   const bossName = BOSS_NAMES[chapter];
   const worldWidth = 5600 + chapter * 180;
   const arenaStart = worldWidth - 1850;
-  const hp = 30 + chapter * 8;
+  const hp = 48 + chapter * 12;
   const platforms: Platform[] = [
     { x: 0, y: GROUND, w: worldWidth, h: 140 },
     { x: 620, y: 465, w: 250, h: 28 },

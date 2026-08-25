@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { LEVELS, type EnemyKind, type LevelDefinition, type Platform } from "./gameLevels";
+import { loadProgress, saveLevelResult, totalStars, type ProgressRecords } from "./gameProgress";
 
 const W = 1280;
 const H = 720;
@@ -17,6 +18,7 @@ const BOSS_SPRITES = [
   "game/bosses/boss-09-tempestor.png",
   "game/bosses/boss-10-nox-imperator.png",
 ];
+const WORLD_BACKGROUNDS = Array.from({ length: 10 }, (_, index) => `game/worlds/world-${String(index + 1).padStart(2, "0")}.webp`);
 
 function assetUrl(path: string) {
   if (typeof document === "undefined") return path;
@@ -35,7 +37,8 @@ type BeforeInstallPromptEvent = Event & {
 type Orb = { x: number; y: number; collected: boolean; phase: number };
 type Enemy = {
   x: number; y: number; baseY: number; w: number; h: number; vx: number; speed: number; minX: number; maxX: number;
-  alive: boolean; phase: number; kind: EnemyKind; hp: number; maxHp: number; hitCooldown: number; attackCooldown: number; shield: number; alerted: boolean; bossName?: string;
+  alive: boolean; phase: number; kind: EnemyKind; hp: number; maxHp: number; hitCooldown: number; attackCooldown: number; shield: number; alerted: boolean;
+  telegraph: number; phaseSeen: number; bossName?: string;
 };
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; size: number; color: string };
 type Shockwave = { x: number; y: number; vx: number; life: number; hit: boolean; color: string; hostile?: boolean };
@@ -112,6 +115,7 @@ export default function AdventureGame() {
   const [credits, setCredits] = useState(0);
   const [upgrades, setUpgrades] = useState<Upgrades>({ vitality: 0, jump: 0, attack: 0, dash: 0 });
   const [skin, setSkin] = useState(0);
+  const [progressRecords, setProgressRecords] = useState<ProgressRecords>({});
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
@@ -149,6 +153,14 @@ export default function AdventureGame() {
   useEffect(() => { creditsRef.current = credits; }, [credits]);
   useEffect(() => { upgradesRef.current = upgrades; }, [upgrades]);
   useEffect(() => { skinRef.current = skin; }, [skin]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden && statusRef.current === "playing") changeStatus("paused");
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [changeStatus]);
 
   useEffect(() => {
     const displayMode = window.matchMedia("(display-mode: standalone)");
@@ -196,6 +208,7 @@ export default function AdventureGame() {
       const savedSkin = Math.max(0, Math.min(SKINS.length - 1, Number(localStorage.getItem("cr3atix-skin") || 0)));
       setSkin(savedSkin); skinRef.current = savedSkin;
       setMuted(localStorage.getItem("cr3atix-muted") === "1");
+      setProgressRecords(loadProgress());
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -224,18 +237,28 @@ export default function AdventureGame() {
     const heroSheet = new Image();
     const heroFallback = new Image();
     const enemyImg = new Image();
-    const worldImg = new Image();
-    const bossImgs = BOSS_SPRITES.map(source => { const image = new Image(); image.src = assetUrl(source); return image; });
+    const worldImgs = WORLD_BACKGROUNDS.map(() => new Image());
+    const bossImgs = BOSS_SPRITES.map(() => new Image());
     heroSheet.src = assetUrl("game/hero-sprite.png");
     heroFallback.src = assetUrl("game/hero.png");
     enemyImg.src = assetUrl("game/enemy.png");
-    worldImg.src = assetUrl("game/world.png");
 
     const backgroundCache = new Map<number, HTMLCanvasElement>();
     let requestedBackground = 0;
+    const ensureWorldImage = (chapter: number) => {
+      const image = worldImgs[chapter];
+      if (image && !image.src) image.src = assetUrl(WORLD_BACKGROUNDS[chapter]);
+      return image;
+    };
+    const ensureBossImage = (chapter: number) => {
+      const image = bossImgs[chapter];
+      if (image && !image.src) image.src = assetUrl(BOSS_SPRITES[chapter]);
+      return image;
+    };
     const prepareBackground = (index: number) => {
-      if (!worldImg.complete || !worldImg.naturalWidth || backgroundCache.has(index)) return;
       const level = LEVELS[index];
+      const worldImg = ensureWorldImage(level.chapter);
+      if (!worldImg?.complete || !worldImg.naturalWidth || backgroundCache.has(index)) return;
       const layer = document.createElement("canvas");
       layer.width = W; layer.height = H;
       const bg = layer.getContext("2d");
@@ -278,9 +301,11 @@ export default function AdventureGame() {
       backgroundCache.set(index, layer);
       if (backgroundCache.size > 3) backgroundCache.delete(backgroundCache.keys().next().value as number);
     };
-    const onWorldLoad = () => prepareBackground(requestedBackground);
-    worldImg.addEventListener("load", onWorldLoad);
-    if (worldImg.complete && worldImg.naturalWidth) prepareBackground(0);
+    const worldLoadHandlers = worldImgs.map((_, chapter) => () => {
+      if (LEVELS[requestedBackground].chapter === chapter) prepareBackground(requestedBackground);
+    });
+    worldImgs.forEach((image, chapter) => image.addEventListener("load", worldLoadHandlers[chapter]));
+    prepareBackground(0);
 
     const orbSprite = document.createElement("canvas");
     orbSprite.width = 80; orbSprite.height = 80;
@@ -382,12 +407,17 @@ export default function AdventureGame() {
     };
 
     function makeEnemy(spawn: LevelDefinition["enemies"][number], index: number): Enemy {
-      const dimensions = spawn.kind === "boss" ? [196, 148] : spawn.kind === "tank" ? [86, 72] : spawn.kind === "flyer" ? [70, 46] : spawn.kind === "charger" ? [76, 62] : spawn.kind === "hopper" ? [60, 64] : [64, 60];
+      const dimensions = spawn.kind === "boss" ? [196, 148]
+        : spawn.kind === "tank" || spawn.kind === "shielder" ? [86, 72]
+        : spawn.kind === "flyer" || spawn.kind === "sentinel" ? [70, 46]
+        : spawn.kind === "charger" || spawn.kind === "exploder" ? [76, 62]
+        : spawn.kind === "hopper" ? [60, 64] : [64, 60];
       const difficultyConfig = DIFFICULTIES[difficultyRef.current];
       const bossScale = spawn.kind === "boss" ? 1.35 : 1;
       const maxHp = Math.max(1, Math.ceil((spawn.hp ?? 1) * difficultyConfig.enemyHp * bossScale));
       const speed = spawn.speed * difficultyConfig.enemySpeed;
-      return { x: spawn.x, y: spawn.y, baseY: spawn.y, minX: spawn.minX, maxX: spawn.maxX, w: dimensions[0], h: dimensions[1], vx: index % 2 ? speed : -speed, speed, alive: true, phase: index * .77, kind: spawn.kind, hp: maxHp, maxHp, hitCooldown: 0, attackCooldown: spawn.kind === "boss" ? 1.5 : 0, shield: 0, alerted: false, bossName: spawn.name };
+      const attackCooldown = spawn.kind === "boss" ? 1.5 : spawn.kind === "shooter" || spawn.kind === "sentinel" ? .8 + index * .07 : 0;
+      return { x: spawn.x, y: spawn.y, baseY: spawn.y, minX: spawn.minX, maxX: spawn.maxX, w: dimensions[0], h: dimensions[1], vx: index % 2 ? speed : -speed, speed, alive: true, phase: index * .77, kind: spawn.kind, hp: maxHp, maxHp, hitCooldown: 0, attackCooldown, shield: 0, alerted: false, telegraph: 0, phaseSeen: 1, bossName: spawn.name };
     }
 
     function reset(levelIndex = currentLevel, keepCampaignScore = false) {
@@ -395,6 +425,8 @@ export default function AdventureGame() {
       activeLevel = LEVELS[currentLevel];
       requestedBackground = currentLevel;
       prepareBackground(currentLevel);
+      ensureWorldImage(Math.min(9, activeLevel.chapter + 1));
+      if (activeLevel.isBoss) ensureBossImage(activeLevel.chapter);
       Object.assign(player, { x: 150, y: 500, vx: 0, vy: 0, grounded: false, coyote: 0, jumps: 0, invulnerable: 0, dashTime: 0, dashCooldown: 0, checkpoint: 150, runPhase: 0, attackTime: 0, attackCooldown: 0, specialTime: 0, counterTime: 0, energy: 0, combo: 0, comboWindow: 0, heavyAttack: false });
       orbs = activeLevel.orbs.map(([x, y], i) => ({ x, y, collected: false, phase: i * 0.63 }));
       enemies = activeLevel.enemies.map(makeEnemy);
@@ -452,6 +484,8 @@ export default function AdventureGame() {
         creditsRef.current += reward;
         setCredits(creditsRef.current);
         localStorage.setItem("cr3atix-credits", String(creditsRef.current));
+        const parTime = activeLevel.isBoss ? 210 + activeLevel.chapter * 15 : Math.round(activeLevel.worldWidth / 150 + 24);
+        setProgressRecords(saveLevelResult(currentLevel, score, elapsed, lives, parTime));
       }
       setHud(buildHud(best));
       changeStatus(next);
@@ -673,17 +707,27 @@ export default function AdventureGame() {
 
       for (const enemy of enemies) {
         if (!enemy.alive) continue;
+        const telegraphBefore = enemy.telegraph;
         enemy.hitCooldown = Math.max(0, enemy.hitCooldown - dt);
         enemy.attackCooldown = Math.max(0, enemy.attackCooldown - dt);
         enemy.shield = Math.max(0, enemy.shield - dt);
+        enemy.telegraph = Math.max(0, enemy.telegraph - dt);
+        const telegraphEnded = telegraphBefore > 0 && enemy.telegraph <= 0;
         const bossDamage = enemy.kind === "boss" ? 1 - enemy.hp / enemy.maxHp : 0;
         const bossPhase = bossDamage >= .67 ? 3 : bossDamage >= .34 ? 2 : 1;
+        if (enemy.kind === "boss" && bossPhase > enemy.phaseSeen) {
+          enemy.phaseSeen = bossPhase; enemy.telegraph = 0; enemy.attackCooldown = 1.05; enemy.shield = .7;
+          emit(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, activeLevel.edge, 54, 390); shake = 18;
+          tone(72 + bossPhase * 22, .38, "sawtooth", .07); haptic([55, 30, 80]);
+        }
         enemy.phase += dt * (enemy.kind === "boss" ? 2.4 + bossPhase * .35 : 5);
         if (enemy.kind === "hopper") enemy.y = enemy.baseY - Math.abs(Math.sin(enemy.phase * .72)) * 84;
-        else if (enemy.kind === "flyer") enemy.y = enemy.baseY + Math.sin(enemy.phase * .62) * 58;
+        else if (enemy.kind === "flyer" || enemy.kind === "sentinel") enemy.y = enemy.baseY + Math.sin(enemy.phase * .62) * 58;
         else if (enemy.kind === "boss" && bossPhase > 1) enemy.y = enemy.baseY - Math.abs(Math.sin(enemy.phase * (bossPhase === 3 ? .82 : .62))) * (bossPhase === 3 ? 112 : 64);
         else enemy.y = enemy.baseY;
         if (enemy.kind === "charger" && Math.abs(player.x - enemy.x) < 430) enemy.vx = Math.sign(player.x - enemy.x || 1) * enemy.speed * 1.85;
+        else if (enemy.kind === "exploder" && Math.abs(player.x - enemy.x) < 340) enemy.vx = Math.sign(player.x - enemy.x || 1) * enemy.speed * 1.7;
+        else if ((enemy.kind === "shooter" || enemy.kind === "sentinel") && Math.abs(player.x - enemy.x) < 720) enemy.vx *= Math.pow(.02, dt);
         else if (enemy.kind === "boss" && Math.abs(player.x - enemy.x) < 1100) {
           const charge = Math.sin(enemy.phase * .73) > .64 ? 1.55 : 1;
           const pace = bossPhase === 3 ? 2.2 : bossPhase === 2 ? 1.62 : 1.12;
@@ -696,7 +740,25 @@ export default function AdventureGame() {
           enemy.alerted = true; missionExtra.alerts++; emit(enemy.x, enemy.y - 25, "#ff4d8d", 18, 210); tone(112, .24, "square", .045);
           if (missionExtra.alerts >= 3) { lives = 0; finishGame("gameover"); return; }
         }
-        if (enemy.kind === "boss" && enemy.attackCooldown <= 0 && Math.abs(player.x - enemy.x) < 1200) {
+        if ((enemy.kind === "shooter" || enemy.kind === "sentinel") && enemy.attackCooldown <= 0 && Math.abs(player.x - enemy.x) < 780) {
+          const direction = Math.sign(player.x - enemy.x || 1);
+          addProjectile(enemy.x + enemy.w / 2, enemy.y + enemy.h * .35, direction * (enemy.kind === "sentinel" ? 390 : 330), enemy.kind === "sentinel" ? Math.sign(player.y - enemy.y) * 70 : -90, enemy.kind === "sentinel" ? "#66e9ff" : "#ff8d63", 16, enemy.kind === "sentinel" ? 0 : 130);
+          enemy.attackCooldown = enemy.kind === "sentinel" ? 1.45 : 1.85;
+          emit(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, enemy.kind === "sentinel" ? "#66e9ff" : "#ff8d63", 8, 120);
+        }
+        if (enemy.kind === "shielder" && enemy.attackCooldown <= 0 && Math.abs(player.x - enemy.x) < 520) {
+          enemy.shield = 1.25; enemy.attackCooldown = 2.8; tone(710, .09, "sine", .025);
+        }
+        if (enemy.kind === "exploder" && enemy.attackCooldown <= 0 && Math.abs(player.x - enemy.x) < 115) {
+          enemy.alive = false; defeated++; shake = 14; emit(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, "#ffcf61", 38, 360);
+          if (Math.abs(player.x - enemy.x) < 150) hurtPlayer(enemy.x + enemy.w / 2, 590);
+          tone(76, .26, "sawtooth", .06); continue;
+        }
+        if (enemy.kind === "boss" && enemy.attackCooldown <= 0 && enemy.telegraph <= 0 && !telegraphEnded && Math.abs(player.x - enemy.x) < 1200) {
+          enemy.telegraph = .62; enemy.attackCooldown = .62;
+          emit(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, "#fff0a1", 12, 130); tone(980, .13, "square", .03); haptic(12);
+        }
+        if (enemy.kind === "boss" && telegraphEnded && Math.abs(player.x - enemy.x) < 1200) {
           const direction = Math.sign(player.x - enemy.x || 1);
           const speed = 420 + bossPhase * 85 + activeLevel.chapter * 12;
           if (activeLevel.chapter === 0) {
@@ -890,20 +952,26 @@ export default function AdventureGame() {
       if (!enemy.alive) return; const x = enemy.x - cameraX; if (x < -100 || x > W + 100) return;
       const filters: Record<EnemyKind, string> = {
         crawler: "none", hopper: "hue-rotate(78deg) saturate(1.35)", flyer: "hue-rotate(185deg) saturate(1.45)",
-        charger: "hue-rotate(320deg) saturate(1.55) contrast(1.1)", tank: "grayscale(.45) saturate(1.6) brightness(.82)", boss: `hue-rotate(${activeLevel.chapter * 31 + 220}deg) saturate(1.9) contrast(1.18)`,
+        charger: "hue-rotate(320deg) saturate(1.55) contrast(1.1)", tank: "grayscale(.45) saturate(1.6) brightness(.82)",
+        shooter: "hue-rotate(25deg) saturate(1.7) brightness(1.08)", shielder: "hue-rotate(242deg) saturate(1.4) contrast(1.2)",
+        exploder: "hue-rotate(348deg) saturate(2) brightness(1.18)", sentinel: "hue-rotate(164deg) saturate(1.8) brightness(1.12)",
+        boss: `hue-rotate(${activeLevel.chapter * 31 + 220}deg) saturate(1.9) contrast(1.18)`,
       };
-      ctx.save(); ctx.translate(x + enemy.w / 2, enemy.y + enemy.h / 2 + Math.sin(enemy.phase) * (enemy.kind === "flyer" ? 5 : 2));
-      if (enemy.kind === "flyer") { ctx.strokeStyle = activeLevel.edge; ctx.globalAlpha = .35; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(0, 0, 52, 24, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
-      if (enemy.kind === "tank") { ctx.strokeStyle = "#e5ecff"; ctx.globalAlpha = .42; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(-45, -34, 90, 68, 22); ctx.stroke(); ctx.globalAlpha = 1; }
+      ctx.save(); ctx.translate(x + enemy.w / 2, enemy.y + enemy.h / 2 + Math.sin(enemy.phase) * (enemy.kind === "flyer" || enemy.kind === "sentinel" ? 5 : 2));
+      if (enemy.kind === "flyer" || enemy.kind === "sentinel") { ctx.strokeStyle = enemy.kind === "sentinel" ? "#66e9ff" : activeLevel.edge; ctx.globalAlpha = .35; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(0, 0, 52, 24, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+      if (enemy.kind === "tank" || enemy.kind === "shielder") { ctx.strokeStyle = enemy.kind === "shielder" ? "#9d8cff" : "#e5ecff"; ctx.globalAlpha = .42; ctx.lineWidth = 7; ctx.beginPath(); ctx.roundRect(-45, -34, 90, 68, 22); ctx.stroke(); ctx.globalAlpha = 1; }
+      if (enemy.kind === "shooter") { ctx.strokeStyle = "#ffb06c"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(8, -5); ctx.lineTo(54, -5); ctx.stroke(); }
+      if (enemy.kind === "exploder") { ctx.fillStyle = `rgba(255,78,88,${.22 + Math.sin(enemy.phase * 2) * .12})`; ctx.beginPath(); ctx.arc(0, 0, 54, 0, Math.PI * 2); ctx.fill(); }
       if (enemy.vx > 0) ctx.scale(-1, 1);
       ctx.shadowBlur = enemy.kind === "boss" ? 28 : 9; ctx.shadowColor = enemy.kind === "boss" ? activeLevel.edge : "#ff5d29"; ctx.filter = enemy.kind === "boss" ? "none" : filters[enemy.kind];
-      const drawW = enemy.kind === "boss" ? 286 : enemy.kind === "tank" ? 136 : enemy.kind === "charger" ? 126 : enemy.kind === "flyer" ? 110 : 114;
-      const drawH = enemy.kind === "boss" ? 184 : enemy.kind === "tank" ? 83 : enemy.kind === "flyer" ? 67 : 70;
+      const drawW = enemy.kind === "boss" ? 286 : enemy.kind === "tank" || enemy.kind === "shielder" ? 136 : enemy.kind === "charger" || enemy.kind === "exploder" ? 126 : enemy.kind === "flyer" || enemy.kind === "sentinel" ? 110 : 114;
+      const drawH = enemy.kind === "boss" ? 184 : enemy.kind === "tank" || enemy.kind === "shielder" ? 83 : enemy.kind === "flyer" || enemy.kind === "sentinel" ? 67 : 70;
       const bossImage = bossImgs[activeLevel.chapter];
       if (enemy.kind === "boss" && bossImage?.complete && bossImage.naturalWidth) ctx.drawImage(bossImage, -drawW / 2, -drawH / 2, drawW, drawH);
       else if (enemyImg.complete && enemyImg.naturalWidth) ctx.drawImage(enemyImg, -drawW / 2, -drawH / 2, drawW, drawH);
       else { ctx.fillStyle = "#111827"; ctx.beginPath(); ctx.roundRect(-enemy.w / 2, -enemy.h / 2, enemy.w, enemy.h, 18); ctx.fill(); ctx.fillStyle = activeLevel.edge; ctx.beginPath(); ctx.arc(-10, -4, 6, 0, Math.PI * 2); ctx.fill(); }
       if (enemy.shield > 0) { ctx.filter = "none"; ctx.strokeStyle = "#d7c4ff"; ctx.lineWidth = 5; ctx.globalAlpha = .72; ctx.beginPath(); ctx.ellipse(0, 0, drawW * .55, drawH * .61, 0, 0, Math.PI * 2); ctx.stroke(); }
+      if (enemy.kind === "boss" && enemy.telegraph > 0) { ctx.filter = "none"; ctx.strokeStyle = "#fff1a8"; ctx.lineWidth = 7; ctx.globalAlpha = .55 + Math.sin(enemy.telegraph * 55) * .25; ctx.beginPath(); ctx.arc(0, 0, drawW * (.55 + enemy.telegraph * .18), 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
       if (enemy.maxHp > 1) {
         const barW = enemy.kind === "boss" ? 238 : 74;
@@ -1005,7 +1073,8 @@ export default function AdventureGame() {
     };
     window.addEventListener("keydown", onKeyDown, { passive: false }); window.addEventListener("keyup", onKeyUp);
     return () => {
-      cancelAnimationFrame(raf); resizeObserver?.disconnect(); worldImg.removeEventListener("load", onWorldLoad);
+      cancelAnimationFrame(raf); resizeObserver?.disconnect();
+      worldImgs.forEach((image, chapter) => image.removeEventListener("load", worldLoadHandlers[chapter]));
       window.removeEventListener("resize", resize); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp);
       delete (window as GameWindow).startCr3atixGame; delete (window as GameWindow).restartCr3atixGame; delete (window as GameWindow).nextCr3atixLevel;
     };
@@ -1062,6 +1131,10 @@ export default function AdventureGame() {
     setInstallMessage(choice.outcome === "accepted" ? "INSTALLATION EN COURS…" : "INSTALLATION ANNULÉE");
   };
   const selected = LEVELS[selectedLevel];
+  const selectedRecord = progressRecords[String(selectedLevel)];
+  const wonRecord = progressRecords[String(hud.level)];
+  const earnedStars = totalStars(progressRecords);
+  const completedLevels = Object.values(progressRecords).filter(record => record.wins > 0).length;
   const worldsUnlocked = Math.min(10, Math.floor((Math.max(1, unlocked) - 1) / 11) + 1);
   const fullscreen = async () => {
     const orientation = window.screen.orientation as ScreenOrientation & {
@@ -1104,7 +1177,7 @@ export default function AdventureGame() {
           {status !== "playing" && <div className={`game-overlay ${status === "menu" ? "main-menu-overlay" : ""}`}>
             {status === "menu" && <div className="mobile-game-menu">
               <header className="mobile-menu-header">
-                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 15 · ANDROID</small><strong>CR3@TIX ADVENTURE</strong></div></div>
+                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 16 · WORLDS</small><strong>CR3@TIX ADVENTURE</strong></div></div>
                 <div className="credit-wallet"><span>◆</span><strong>{credits}</strong><small>CRÉDITS</small></div>
               </header>
 
@@ -1119,6 +1192,11 @@ export default function AdventureGame() {
                       <button onClick={() => moveSelection(1)} disabled={selectedLevel >= Math.min(LEVELS.length - 1, unlocked - 1)} aria-label="Niveau suivant">›</button>
                     </div>
                     <p>{selected.description}</p>
+                    <div className="mission-mastery" aria-label="Maîtrise du niveau">
+                      <span><b>{selectedRecord ? "★".repeat(selectedRecord.stars) + "☆".repeat(3 - selectedRecord.stars) : "☆☆☆"}</b> MAÎTRISE</span>
+                      <span><b>{selectedRecord?.bestScore ?? 0}</b> MEILLEUR SCORE</span>
+                      <span><b>{selectedRecord?.bestTime ? `${selectedRecord.bestTime.toFixed(1)}s` : "—"}</b> MEILLEUR TEMPS</span>
+                    </div>
                     <button className="mobile-play-button" onClick={start}><span>▶</span><div><small>{selected.isBoss ? "COMBAT SPÉCIAL" : "MISSION SÉLECTIONNÉE"}</small><strong>JOUER MAINTENANT</strong></div></button>
                   </div>
                   <div className="world-strip" aria-label="Choix du monde">
@@ -1127,7 +1205,7 @@ export default function AdventureGame() {
                       return <button key={chapter} className={selected.chapter === chapter ? "active" : ""} disabled={locked} onClick={() => chooseChapter(chapter)}><small>MONDE</small><strong>{locked ? "◆" : chapter + 1}</strong></button>;
                     })}
                   </div>
-                  <div className="menu-quick-stats"><span><strong>110</strong>NIVEAUX</span><span><strong>10</strong>BOSS</span><span><strong>{DIFFICULTIES[difficulty].label}</strong>DIFFICULTÉ</span></div>
+                  <div className="menu-quick-stats"><span><strong>{completedLevels}/110</strong>TERMINÉS</span><span><strong>{earnedStars}/330 ★</strong>MAÎTRISE</span><span><strong>{DIFFICULTIES[difficulty].label}</strong>DIFFICULTÉ</span></div>
                 </section>}
 
                 {menuTab === "gear" && <section className="menu-panel gear-panel" aria-label="Équipement">
@@ -1177,7 +1255,7 @@ export default function AdventureGame() {
               <div className="boss-intro-stats"><span>DANGER</span><strong>3 PHASES + POUVOIR UNIQUE</strong><span>BASE PV</span><strong>{LEVELS[hud.level].enemies.find(enemy => enemy.kind === "boss")?.hp ?? 1}</strong></div>
               <button className="primary-cta boss-cta" onClick={enterFight}>AFFRONTER LE BOSS</button>
             </div>}
-            {status === "won" && <div className="overlay-card compact-card success-card"><p className="eyebrow">PORTAIL STABILISÉ</p><h2>{hud.level === LEVELS.length - 1 ? "CAMPAGNE TERMINÉE" : LEVELS[hud.level].isBoss ? "BOSS VAINCU" : "NIVEAU RÉUSSI"}</h2><p>Mission <strong>{hud.missionValue}</strong> · Score <strong>{hud.score}</strong> · Crédits <strong>{credits}</strong></p><div className="overlay-actions"><button className="primary-cta" onClick={nextLevel}>{hud.level === LEVELS.length - 1 ? "RECOMMENCER" : "NIVEAU SUIVANT"}</button><button className="secondary-cta" onClick={() => returnToMenu("gear")}>AMÉLIORATIONS</button></div></div>}
+            {status === "won" && <div className="overlay-card compact-card success-card"><p className="eyebrow">PORTAIL STABILISÉ</p><h2>{hud.level === LEVELS.length - 1 ? "CAMPAGNE TERMINÉE" : LEVELS[hud.level].isBoss ? "BOSS VAINCU" : "NIVEAU RÉUSSI"}</h2><div className="victory-stars" aria-label={`${wonRecord?.stars ?? 1} étoiles`}>{"★".repeat(wonRecord?.stars ?? 1)}{"☆".repeat(3 - (wonRecord?.stars ?? 1))}</div><p>Mission <strong>{hud.missionValue}</strong> · Score <strong>{hud.score}</strong> · Crédits <strong>{credits}</strong></p><div className="overlay-actions"><button className="primary-cta" onClick={nextLevel}>{hud.level === LEVELS.length - 1 ? "RECOMMENCER" : "NIVEAU SUIVANT"}</button><button className="secondary-cta" onClick={() => returnToMenu("gear")}>AMÉLIORATIONS</button></div></div>}
             {status === "gameover" && <div className="overlay-card compact-card danger-card"><p className="eyebrow">SIGNAL PERDU</p><h2>MISSION ÉCHOUÉE</h2><p>Score <strong>{hud.score}</strong> · Record <strong>{hud.best}</strong></p><div className="overlay-actions"><button className="primary-cta" onClick={restart}>RÉESSAYER</button><button className="secondary-cta" onClick={() => returnToMenu("gear")}>ÉQUIPEMENT</button></div></div>}
           </div>}
           <div className="mobile-controls" aria-label="Commandes tactiles">

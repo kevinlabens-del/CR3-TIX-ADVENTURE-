@@ -1,6 +1,6 @@
 {
   "name": "cr3atix-adventure",
-  "version": "0.1.0",
+  "version": "16.0.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -12,7 +12,8 @@
     "build:pages": "vite build --config vite.github.config.ts",
     "preview:pages": "vite preview --config vite.github.config.ts",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run test:unit && npm run build && node --test tests/rendered-html.test.mjs",
+    "test:unit": "node --experimental-strip-types --test tests/campaign.test.mjs tests/progress.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern gh-pages-dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
   },

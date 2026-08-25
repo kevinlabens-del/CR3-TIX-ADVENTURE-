@@ -7,9 +7,12 @@ Jeu de plateforme et de combat pensé pour mobile, jouable au clavier ou avec le
 - 110 niveaux au total
 - 100 missions classiques et 10 combats de boss
 - un niveau spécial avec boss tous les 10 niveaux
-- plusieurs familles d'ennemis et des missions variées
+- 10 biomes illustrés et distincts, un pour chaque monde
+- 14 types de missions répartis différemment selon les mondes
+- 9 familles d'ennemis aux comportements différents
+- boss renforcés avec trois phases, télégraphes d'attaque et pouvoirs uniques
 - animations de marche, course et saut
-- difficulté, améliorations, skins et progression sauvegardée localement
+- difficulté, améliorations, skins et progression à 3 étoiles sauvegardée localement
 - menu mobile, plein écran paysage et bouton de retour au menu
 - installation Android depuis Chrome, avec icône, lancement plein écran et cache hors connexion
 
@@ -41,8 +44,8 @@ Le workflow `.github/workflows/deploy-pages.yml` construit et publie automatique
 
 - déplacement : flèches ou boutons tactiles
 - saut : flèche haut / espace / bouton SAUT
-- dash : Maj / bouton DASH
-- attaque : X / bouton ATTAQUE
-- pouvoir spécial : C / bouton SPÉCIAL
+- dash : Maj ou X / bouton DASH
+- attaque : J ou C / bouton ATQ
+- pouvoir spécial : K ou V / bouton ULT
 
 La progression et les réglages sont conservés dans le navigateur.

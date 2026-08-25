@@ -27,13 +27,14 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Restaurer les deux grandes images
-        run: |
-          cat .github/assets/world.png.part-* > public/game/world.png
-          cat .github/assets/og.png.part-* > public/og.png
-
       - name: Installer les dépendances
         run: npm ci
+
+      - name: Vérifier le code
+        run: npm run lint
+
+      - name: Tester la campagne et la sauvegarde
+        run: npm run test:unit
 
       - name: Construire le jeu
         run: npm run build:pages
