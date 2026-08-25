@@ -11,6 +11,15 @@ Jeu de plateforme et de combat pensé pour mobile, jouable au clavier ou avec le
 - animations de marche, course et saut
 - difficulté, améliorations, skins et progression sauvegardée localement
 - menu mobile, plein écran paysage et bouton de retour au menu
+- installation Android depuis Chrome, avec icône, lancement plein écran et cache hors connexion
+
+## Installer sur Android
+
+1. Ouvre le jeu dans Chrome sur ton smartphone.
+2. Dans le jeu, ouvre **OPTIONS** puis touche **INSTALLER SUR ANDROID**.
+3. Confirme **Installer**. L’icône CR3@TIX apparaît sur l’écran d’accueil.
+
+Si le bouton d’installation n’est pas encore proposé, recharge la page puis utilise le menu **⋮** de Chrome et choisis **Installer l’application**.
 
 ## Jouer en local
 

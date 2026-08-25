@@ -12,8 +12,18 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cr3atix-adventure.fallback-bzh.chatgpt.site"),
+  applicationName: "CR3@TIX ADVENTURE",
   title: "CR3@TIX ADVENTURE",
   description: "Une aventure de plateforme et de combat en 110 niveaux, avec progression, missions variées et 10 boss uniques.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CR3@TIX",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     title: "CR3@TIX ADVENTURE",
     description: "Explore 110 niveaux, améliore ton héros et affronte 10 boss uniques en trois phases.",
@@ -27,8 +37,16 @@ export const metadata: Metadata = {
     images: ["/og.png"],
   },
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
     shortcut: "/favicon.svg",
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 

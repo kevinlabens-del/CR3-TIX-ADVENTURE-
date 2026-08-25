@@ -179,6 +179,15 @@ canvas { width: 100%; height: auto; display: block; background: #080d22; }
 .option-actions strong, .option-actions small { display: block; }
 .option-actions strong { font-size: 9px; letter-spacing: .1em; }
 .option-actions small { margin-top: 3px; color: #71809e; font-size: 7px; }
+.android-install-card { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 11px; margin: 10px 0; padding: 11px 13px; border: 1px solid rgba(111, 248, 255, .35); border-radius: 15px; background: linear-gradient(110deg, rgba(24, 117, 145, .24), rgba(95, 51, 190, .22)); box-shadow: inset 0 0 22px rgba(111, 248, 255, .05); }
+.android-install-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: #031017; background: linear-gradient(145deg, #7affd9, #6fdfff); font-size: 22px; font-weight: 1000; box-shadow: 0 0 18px rgba(111, 248, 255, .2); }
+.android-install-card strong, .android-install-card small { display: block; }
+.android-install-card strong { color: #f4feff; font-size: 9px; letter-spacing: .1em; }
+.android-install-card small { margin-top: 4px; color: #7e91ad; font-size: 7px; }
+.android-install-card > button { min-width: 105px; padding: 10px 12px; border: 0; border-radius: 10px; color: #07121a; background: linear-gradient(120deg, #73ffd6, #72dcff); font-size: 7px; font-weight: 1000; letter-spacing: .09em; cursor: pointer; box-shadow: 0 7px 20px rgba(39, 211, 220, .16); }
+.android-install-card > button:disabled { color: #77b9a7; background: rgba(70, 137, 122, .22); cursor: default; box-shadow: none; }
+.android-install-card > p { grid-column: 2 / -1; margin: -3px 0 0; color: #b7cbdb; font-size: 7px; line-height: 1.35; }
+.android-install-card.installed { border-color: rgba(110, 255, 191, .28); background: rgba(31, 105, 77, .18); }
 .control-guide { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .control-guide span { padding: 9px 5px; border-radius: 10px; color: #687894; background: rgba(3, 6, 18, .55); font-size: 6px; font-weight: 900; text-align: center; }
 .control-guide b { display: block; margin-bottom: 4px; color: #c5d7ee; font-size: 8px; }
@@ -375,6 +384,12 @@ canvas { width: 100%; height: auto; display: block; background: #080d22; }
   .option-actions button > span { width: 25px; height: 25px; border-radius: 7px; font-size: 12px; }
   .option-actions strong { font-size: 6px; }
   .option-actions small { font-size: 5px; }
+  .android-install-card { grid-template-columns: 28px 1fr auto; gap: 7px; margin: 4px 0; padding: 4px 7px; border-radius: 8px; }
+  .android-install-icon { width: 25px; height: 25px; border-radius: 7px; font-size: 14px; }
+  .android-install-card strong { font-size: 6px; }
+  .android-install-card small { margin-top: 2px; font-size: 5px; }
+  .android-install-card > button { min-width: 82px; padding: 7px 8px; border-radius: 7px; font-size: 5.5px; }
+  .android-install-card > p { margin-top: -2px; font-size: 5px; }
   .control-guide { grid-template-columns: repeat(5, 1fr); gap: 3px; }
   .control-guide span { padding: 4px 2px; font-size: 4.5px; }
   .control-guide b { margin-bottom: 2px; font-size: 6px; }

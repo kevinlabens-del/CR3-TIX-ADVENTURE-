@@ -28,6 +28,10 @@ type MenuTab = "play" | "gear" | "options";
 type InputKey = "left" | "right" | "jump" | "dash" | "attack" | "special";
 type Difficulty = "easy" | "normal" | "expert";
 type Upgrades = { vitality: number; jump: number; attack: number; dash: number };
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
 type Orb = { x: number; y: number; collected: boolean; phase: number };
 type Enemy = {
   x: number; y: number; baseY: number; w: number; h: number; vx: number; speed: number; minX: number; maxX: number;
@@ -108,6 +112,9 @@ export default function AdventureGame() {
   const [credits, setCredits] = useState(0);
   const [upgrades, setUpgrades] = useState<Upgrades>({ vitality: 0, jump: 0, attack: 0, dash: 0 });
   const [skin, setSkin] = useState(0);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [installMessage, setInstallMessage] = useState("");
   const mutedRef = useRef(false);
   const difficultyRef = useRef<Difficulty>("normal");
   const creditsRef = useRef(0);
@@ -142,6 +149,39 @@ export default function AdventureGame() {
   useEffect(() => { creditsRef.current = credits; }, [credits]);
   useEffect(() => { upgradesRef.current = upgrades; }, [upgrades]);
   useEffect(() => { skinRef.current = skin; }, [skin]);
+
+  useEffect(() => {
+    const displayMode = window.matchMedia("(display-mode: standalone)");
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    const syncInstalledState = () => setIsInstalled(displayMode.matches || navigatorWithStandalone.standalone === true);
+    const captureInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+      setInstallMessage("");
+    };
+    const confirmInstallation = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+      setInstallMessage("APPLICATION INSTALLÉE");
+    };
+
+    syncInstalledState();
+    displayMode.addEventListener?.("change", syncInstalledState);
+    window.addEventListener("beforeinstallprompt", captureInstallPrompt);
+    window.addEventListener("appinstalled", confirmInstallation);
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register(assetUrl("sw.js")).catch(() => {
+        setInstallMessage("L’installation sera disponible après avoir rechargé la page.");
+      });
+    }
+
+    return () => {
+      displayMode.removeEventListener?.("change", syncInstalledState);
+      window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
+      window.removeEventListener("appinstalled", confirmInstallation);
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1009,6 +1049,18 @@ export default function AdventureGame() {
     localStorage.setItem("cr3atix-upgrades", JSON.stringify(next)); localStorage.setItem("cr3atix-credits", String(balance)); tone(740, .16, "triangle", .045);
   };
   const chooseSkin = (index: number) => { setSkin(index); skinRef.current = index; localStorage.setItem("cr3atix-skin", String(index)); };
+  const installApplication = async () => {
+    if (isInstalled) return;
+    if (!installPrompt) {
+      setInstallMessage("Dans Chrome, touche ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».");
+      return;
+    }
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    setInstallPrompt(null);
+    setInstallMessage(choice.outcome === "accepted" ? "INSTALLATION EN COURS…" : "INSTALLATION ANNULÉE");
+  };
   const selected = LEVELS[selectedLevel];
   const worldsUnlocked = Math.min(10, Math.floor((Math.max(1, unlocked) - 1) / 11) + 1);
   const fullscreen = async () => {
@@ -1052,7 +1104,7 @@ export default function AdventureGame() {
           {status !== "playing" && <div className={`game-overlay ${status === "menu" ? "main-menu-overlay" : ""}`}>
             {status === "menu" && <div className="mobile-game-menu">
               <header className="mobile-menu-header">
-                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 12</small><strong>CR3@TIX ADVENTURE</strong></div></div>
+                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 15 · ANDROID</small><strong>CR3@TIX ADVENTURE</strong></div></div>
                 <div className="credit-wallet"><span>◆</span><strong>{credits}</strong><small>CRÉDITS</small></div>
               </header>
 
@@ -1097,6 +1149,12 @@ export default function AdventureGame() {
                     {(Object.keys(DIFFICULTIES) as Difficulty[]).map(mode => <button key={mode} className={difficulty === mode ? "active" : ""} onClick={() => chooseDifficulty(mode)}>{DIFFICULTIES[mode].label}</button>)}
                   </div></div>
                   <div className="option-actions"><button onClick={toggleSound}><span>{muted ? "◌" : "♪"}</span><div><strong>SON</strong><small>{muted ? "DÉSACTIVÉ" : "ACTIVÉ"}</small></div></button><button onClick={fullscreen}><span>↔</span><div><strong>PLEIN ÉCRAN</strong><small>MODE PAYSAGE</small></div></button></div>
+                  <div className={`android-install-card ${isInstalled ? "installed" : ""}`}>
+                    <span className="android-install-icon">↓</span>
+                    <div><strong>{isInstalled ? "APPLICATION INSTALLÉE" : "INSTALLER SUR ANDROID"}</strong><small>{isInstalled ? "Prête depuis ton écran d’accueil" : "Plein écran · icône · progression locale"}</small></div>
+                    <button onClick={installApplication} disabled={isInstalled}>{isInstalled ? "INSTALLÉE" : installPrompt ? "INSTALLER" : "COMMENT FAIRE"}</button>
+                    {installMessage && <p role="status">{installMessage}</p>}
+                  </div>
                   <div className="control-guide"><span><b>← →</b> BOUGER</span><span><b>SAUT</b> DOUBLE SAUT</span><span><b>DASH</b> ESQUIVE</span><span><b>ATQ</b> MAINTENIR = CHARGE</span><span><b>ULT</b> POUVOIR SPÉCIAL</span></div>
                 </section>}
               </div>
