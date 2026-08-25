@@ -15,6 +15,7 @@ Jeu de plateforme et de combat pensé pour mobile, jouable au clavier ou avec le
 - difficulté, améliorations, skins et progression à 3 étoiles sauvegardée localement
 - menu mobile, plein écran paysage et bouton de retour au menu
 - installation Android depuis Chrome, avec icône, lancement plein écran et cache hors connexion
+- mises à jour automatiques au lancement, au retour dans l’application, au retour du réseau et toutes les 10 minutes
 
 ## Installer sur Android
 
@@ -23,6 +24,10 @@ Jeu de plateforme et de combat pensé pour mobile, jouable au clavier ou avec le
 3. Confirme **Installer**. L’icône CR3@TIX apparaît sur l’écran d’accueil.
 
 Si le bouton d’installation n’est pas encore proposé, recharge la page puis utilise le menu **⋮** de Chrome et choisis **Installer l’application**.
+
+## Mises à jour automatiques
+
+Une version publiée remplace automatiquement l’ancienne, y compris quand le jeu est installé comme application Android. Le jeu vérifie les nouveautés au démarrage, lorsqu’il revient au premier plan, au retour de la connexion et toutes les 10 minutes. Dès qu’une version est prête, elle est activée puis l’application redémarre une seule fois. L’onglet **OPTIONS** permet aussi de lancer une vérification manuelle.
 
 ## Jouer en local
 

@@ -6,6 +6,8 @@ import { loadProgress, saveLevelResult, totalStars, type ProgressRecords } from 
 
 const W = 1280;
 const H = 720;
+const APP_VERSION = "17.0.0";
+const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const BOSS_SPRITES = [
   "game/bosses/boss-01-kryon-prime.png",
   "game/bosses/boss-02-vulkar.png",
@@ -119,6 +121,9 @@ export default function AdventureGame() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
+  const [updateMessage, setUpdateMessage] = useState(`INITIALISATION · V${APP_VERSION}`);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const mutedRef = useRef(false);
   const difficultyRef = useRef<Difficulty>("normal");
   const creditsRef = useRef(0);
@@ -165,7 +170,16 @@ export default function AdventureGame() {
   useEffect(() => {
     const displayMode = window.matchMedia("(display-mode: standalone)");
     const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    let updateTimer: number | undefined;
+    let disposed = false;
+    let reloadStarted = false;
+    let controllerWasPresent = Boolean(navigator.serviceWorker?.controller);
+    let registeredWorker: ServiceWorkerRegistration | null = null;
+    let updateFoundHandler: (() => void) | null = null;
     const syncInstalledState = () => setIsInstalled(displayMode.matches || navigatorWithStandalone.standalone === true);
+    const reportUpdate = (message: string) => {
+      if (!disposed) setUpdateMessage(message);
+    };
     const captureInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
@@ -176,6 +190,40 @@ export default function AdventureGame() {
       setInstallPrompt(null);
       setInstallMessage("APPLICATION INSTALLÉE");
     };
+    const activateWaitingWorker = (registration: ServiceWorkerRegistration) => {
+      if (!registration.waiting) return false;
+      reportUpdate("NOUVELLE VERSION TROUVÉE · INSTALLATION…");
+      registration.waiting.postMessage({ type: "CR3ATIX_SKIP_WAITING" });
+      return true;
+    };
+    const checkRegistration = async () => {
+      const registration = serviceWorkerRegistrationRef.current;
+      if (!registration || !navigator.onLine) {
+        if (!navigator.onLine) reportUpdate("HORS LIGNE · VÉRIFICATION AU RETOUR DU RÉSEAU");
+        return;
+      }
+      try {
+        await registration.update();
+        if (!activateWaitingWorker(registration)) reportUpdate(`À JOUR · V${APP_VERSION}`);
+      } catch {
+        reportUpdate("VÉRIFICATION IMPOSSIBLE · NOUVEL ESSAI AUTOMATIQUE");
+      }
+    };
+    const onControllerChange = () => {
+      if (!controllerWasPresent) {
+        controllerWasPresent = true;
+        reportUpdate(`MISES À JOUR AUTOMATIQUES ACTIVES · V${APP_VERSION}`);
+        return;
+      }
+      if (reloadStarted) return;
+      reloadStarted = true;
+      reportUpdate("MISE À JOUR INSTALLÉE · REDÉMARRAGE…");
+      window.setTimeout(() => window.location.reload(), 350);
+    };
+    const onPageVisible = () => {
+      if (document.visibilityState === "visible") void checkRegistration();
+    };
+    const onOnline = () => void checkRegistration();
 
     syncInstalledState();
     displayMode.addEventListener?.("change", syncInstalledState);
@@ -183,15 +231,47 @@ export default function AdventureGame() {
     window.addEventListener("appinstalled", confirmInstallation);
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register(assetUrl("sw.js")).catch(() => {
+      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+      document.addEventListener("visibilitychange", onPageVisible);
+      window.addEventListener("online", onOnline);
+      navigator.serviceWorker.register(assetUrl("sw.js"), { updateViaCache: "none" }).then((registration) => {
+        if (disposed) return;
+        registeredWorker = registration;
+        serviceWorkerRegistrationRef.current = registration;
+        updateFoundHandler = () => {
+          const installingWorker = registration.installing;
+          if (!installingWorker) return;
+          reportUpdate("NOUVELLE VERSION DÉTECTÉE · PRÉPARATION…");
+          installingWorker.addEventListener("statechange", () => {
+            if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+              reportUpdate("NOUVELLE VERSION PRÊTE · INSTALLATION…");
+              (registration.waiting ?? installingWorker).postMessage({ type: "CR3ATIX_SKIP_WAITING" });
+            }
+          });
+        };
+        registration.addEventListener("updatefound", updateFoundHandler);
+        activateWaitingWorker(registration);
+        void checkRegistration();
+        updateTimer = window.setInterval(() => void checkRegistration(), UPDATE_INTERVAL_MS);
+      }).catch(() => {
+        reportUpdate("AUTO-UPDATE INDISPONIBLE · RECHARGE LA PAGE");
         setInstallMessage("L’installation sera disponible après avoir rechargé la page.");
       });
+    } else {
+      window.setTimeout(() => reportUpdate("AUTO-UPDATE NON PRIS EN CHARGE"), 0);
     }
 
     return () => {
+      disposed = true;
+      if (updateTimer !== undefined) window.clearInterval(updateTimer);
+      if (registeredWorker && updateFoundHandler) registeredWorker.removeEventListener("updatefound", updateFoundHandler);
+      serviceWorkerRegistrationRef.current = null;
       displayMode.removeEventListener?.("change", syncInstalledState);
       window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
       window.removeEventListener("appinstalled", confirmInstallation);
+      document.removeEventListener("visibilitychange", onPageVisible);
+      window.removeEventListener("online", onOnline);
+      navigator.serviceWorker?.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
 
@@ -1130,6 +1210,33 @@ export default function AdventureGame() {
     setInstallPrompt(null);
     setInstallMessage(choice.outcome === "accepted" ? "INSTALLATION EN COURS…" : "INSTALLATION ANNULÉE");
   };
+  const checkForUpdateNow = async () => {
+    if (!("serviceWorker" in navigator)) {
+      setUpdateMessage("AUTO-UPDATE NON PRIS EN CHARGE");
+      return;
+    }
+    setCheckingUpdate(true);
+    setUpdateMessage("RECHERCHE D’UNE NOUVELLE VERSION…");
+    try {
+      const registration = serviceWorkerRegistrationRef.current ?? await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        setUpdateMessage("AUTO-UPDATE EN COURS D’INITIALISATION");
+        return;
+      }
+      serviceWorkerRegistrationRef.current = registration;
+      await registration.update();
+      if (registration.waiting) {
+        setUpdateMessage("NOUVELLE VERSION TROUVÉE · INSTALLATION…");
+        registration.waiting.postMessage({ type: "CR3ATIX_SKIP_WAITING" });
+      } else {
+        setUpdateMessage(`À JOUR · V${APP_VERSION}`);
+      }
+    } catch {
+      setUpdateMessage(navigator.onLine ? "VÉRIFICATION IMPOSSIBLE · RÉESSAIE" : "HORS LIGNE · NOUVEL ESSAI AUTOMATIQUE");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
   const selected = LEVELS[selectedLevel];
   const selectedRecord = progressRecords[String(selectedLevel)];
   const wonRecord = progressRecords[String(hud.level)];
@@ -1177,7 +1284,7 @@ export default function AdventureGame() {
           {status !== "playing" && <div className={`game-overlay ${status === "menu" ? "main-menu-overlay" : ""}`}>
             {status === "menu" && <div className="mobile-game-menu">
               <header className="mobile-menu-header">
-                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 16 · WORLDS</small><strong>CR3@TIX ADVENTURE</strong></div></div>
+                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 17 · AUTO UPDATE</small><strong>CR3@TIX ADVENTURE</strong></div></div>
                 <div className="credit-wallet"><span>◆</span><strong>{credits}</strong><small>CRÉDITS</small></div>
               </header>
 
@@ -1232,6 +1339,11 @@ export default function AdventureGame() {
                     <div><strong>{isInstalled ? "APPLICATION INSTALLÉE" : "INSTALLER SUR ANDROID"}</strong><small>{isInstalled ? "Prête depuis ton écran d’accueil" : "Plein écran · icône · progression locale"}</small></div>
                     <button onClick={installApplication} disabled={isInstalled}>{isInstalled ? "INSTALLÉE" : installPrompt ? "INSTALLER" : "COMMENT FAIRE"}</button>
                     {installMessage && <p role="status">{installMessage}</p>}
+                  </div>
+                  <div className="android-install-card auto-update-card">
+                    <span className="android-install-icon">↻</span>
+                    <div><strong>MISES À JOUR AUTOMATIQUES</strong><small role="status" aria-live="polite">{updateMessage}</small></div>
+                    <button onClick={checkForUpdateNow} disabled={checkingUpdate}>{checkingUpdate ? "VÉRIFICATION…" : "VÉRIFIER"}</button>
                   </div>
                   <div className="control-guide"><span><b>← →</b> BOUGER</span><span><b>SAUT</b> DOUBLE SAUT</span><span><b>DASH</b> ESQUIVE</span><span><b>ATQ</b> MAINTENIR = CHARGE</span><span><b>ULT</b> POUVOIR SPÉCIAL</span></div>
                 </section>}

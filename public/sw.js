@@ -1,4 +1,5 @@
-const CACHE_NAME = "cr3atix-adventure-v16";
+const APP_VERSION = "17.0.0";
+const CACHE_NAME = "cr3atix-adventure-v17";
 const APP_ROOT = new URL("./", self.registration.scope).toString();
 const CORE_PATHS = [
   "", "manifest.webmanifest", "favicon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png",
@@ -40,8 +41,20 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((key) => key.startsWith("cr3atix-adventure-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: "window", includeUncontrolled: true }))
+      .then((clients) => clients.forEach((client) => client.postMessage({ type: "CR3ATIX_UPDATE_ACTIVE", version: APP_VERSION }))),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "CR3ATIX_SKIP_WAITING") {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
+  if (event.data?.type === "CR3ATIX_GET_VERSION") {
+    event.source?.postMessage({ type: "CR3ATIX_VERSION", version: APP_VERSION });
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -51,7 +64,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => {
           if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
           return response;
