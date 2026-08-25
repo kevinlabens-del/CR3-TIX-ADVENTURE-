@@ -52,6 +52,6 @@ test("les dix décors et les dix boss ont leurs fichiers de production", async (
   const bossFiles = ["boss-01-kryon-prime.png", "boss-02-vulkar.png", "boss-03-selene-x.png", "boss-04-mycora.png", "boss-05-glacius.png", "boss-06-heliox.png", "boss-07-abyssus.png", "boss-08-archivor.png", "boss-09-tempestor.png", "boss-10-nox-imperator.png"];
   await Promise.all(bossFiles.map(file => access(new URL(`../public/game/bosses/${file}`, import.meta.url))));
   const manifest = JSON.parse(await readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"));
-  assert.equal(manifest.orientation, "landscape");
-  assert.equal(manifest.display, "fullscreen");
+  assert.equal(manifest.orientation, "any");
+  assert.equal(manifest.display, "standalone");
 });

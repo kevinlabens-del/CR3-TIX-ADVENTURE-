@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#02030b" />
+    <meta http-equiv="refresh" content="0; url=./?source=installed-app" />
+    <title>Lancement de CR3@TIX ADVENTURE</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #02030b; color: #f5f7ff; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; text-align: center; }
+      main { padding: 24px; }
+      strong { display: block; margin-bottom: 16px; letter-spacing: .08em; }
+      a { color: #73f6ff; }
+    </style>
+    <script>
+      (() => {
+        const gameUrl = new URL("./", window.location.href);
+        gameUrl.searchParams.set("source", "installed-app");
+        window.location.replace(gameUrl.href);
+      })();
+    </script>
+  </head>
+  <body>
+    <main>
+      <strong>LANCEMENT DE CR3@TIX ADVENTURE…</strong>
+      <a href="./?source=installed-app">Ouvrir le jeu</a>
+    </main>
+  </body>
+</html>

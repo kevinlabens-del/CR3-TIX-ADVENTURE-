@@ -5,9 +5,10 @@ import test from "node:test";
 const serviceWorker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
 const gameClient = await readFile(new URL("../app/AdventureGame.tsx", import.meta.url), "utf8");
 
-test("le service worker V18 active immédiatement la nouvelle version", () => {
-  assert.match(serviceWorker, /APP_VERSION = "18\.0\.0"/);
-  assert.match(serviceWorker, /CACHE_NAME = "cr3atix-adventure-v18"/);
+test("le service worker V19 active immédiatement la nouvelle version", () => {
+  assert.match(serviceWorker, /APP_VERSION = "19\.0\.0"/);
+  assert.match(serviceWorker, /CACHE_NAME = "cr3atix-adventure-v19"/);
+  assert.match(serviceWorker, /"launch\.html"/);
   assert.match(serviceWorker, /self\.skipWaiting\(\)/);
   assert.match(serviceWorker, /self\.clients\.claim\(\)/);
   assert.match(serviceWorker, /CR3ATIX_SKIP_WAITING/);

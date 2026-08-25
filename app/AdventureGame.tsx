@@ -6,7 +6,7 @@ import { loadProgress, saveLevelResult, totalStars, type ProgressRecords } from 
 
 const W = 1280;
 const H = 720;
-const APP_VERSION = "18.0.0";
+const APP_VERSION = "19.0.0";
 const UPDATE_INTERVAL_MS = 10 * 60 * 1000;
 const BOSS_SPRITES = [
   "game/bosses/boss-01-kryon-prime.png",
@@ -1284,7 +1284,7 @@ export default function AdventureGame() {
           {status !== "playing" && <div className={`game-overlay ${status === "menu" ? "main-menu-overlay" : ""}`}>
             {status === "menu" && <div className="mobile-game-menu">
               <header className="mobile-menu-header">
-                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 18 · ANDROID FIX</small><strong>CR3@TIX ADVENTURE</strong></div></div>
+                <div className="mobile-menu-brand"><span className="mobile-menu-logo">C</span><div><small>VERSION 19 · LANCEUR ANDROID</small><strong>CR3@TIX ADVENTURE</strong></div></div>
                 <div className="credit-wallet"><span>◆</span><strong>{credits}</strong><small>CRÉDITS</small></div>
               </header>
 

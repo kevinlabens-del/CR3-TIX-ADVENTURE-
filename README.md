@@ -14,9 +14,9 @@ Jeu de plateforme et de combat pensé pour mobile, jouable au clavier ou avec le
 - animations de marche, course et saut
 - difficulté, améliorations, skins et progression à 3 étoiles sauvegardée localement
 - menu mobile, plein écran paysage et bouton de retour au menu
-- installation Android depuis Chrome, avec icône, lancement plein écran et cache hors connexion
+- installation Android depuis Chrome, avec icône, fenêtre autonome et cache hors connexion
 - mises à jour automatiques au lancement, au retour dans l’application, au retour du réseau et toutes les 10 minutes
-- identité Android dédiée et adresse de lancement vérifiée pour éviter les conflits avec les autres jeux GitHub Pages
+- identité Android dédiée et lanceur V19 séparé pour éviter les conflits ou les tâches Chrome invisibles
 
 ## Installer sur Android
 
@@ -26,7 +26,7 @@ Jeu de plateforme et de combat pensé pour mobile, jouable au clavier ou avec le
 
 Si le bouton d’installation n’est pas encore proposé, recharge la page puis utilise le menu **⋮** de Chrome et choisis **Installer l’application**.
 
-Après une correction de l’identité Android, désinstalle une éventuelle ancienne icône qui ne s’ouvre plus, recharge le jeu dans Chrome puis réinstalle-le. Les versions suivantes conserveront cette nouvelle identité stable.
+La V19 remplace l’ancienne adresse directe par un document de lancement dédié. Si une ancienne icône ne s’ouvre plus, désinstalle réellement l’application depuis **Informations sur l’application**, recharge le jeu dans Chrome puis réinstalle-le. Le bouton **PAYSAGE** du jeu active ensuite le plein écran paysage.
 
 ## Mises à jour automatiques
 

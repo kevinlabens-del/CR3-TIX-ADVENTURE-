@@ -4,11 +4,13 @@
   "short_name": "CR3@TIX",
   "description": "Jeu de plateforme et de combat en 110 niveaux avec 10 boss uniques.",
   "lang": "fr",
-  "start_url": "/?source=installed-app",
+  "start_url": "/launch.html",
   "scope": "/",
-  "display": "fullscreen",
-  "display_override": ["fullscreen", "standalone"],
-  "orientation": "landscape",
+  "display": "standalone",
+  "orientation": "any",
+  "launch_handler": {
+    "client_mode": "navigate-new"
+  },
   "background_color": "#02030b",
   "theme_color": "#02030b",
   "categories": ["games", "entertainment"],
