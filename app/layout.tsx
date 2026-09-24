@@ -3,7 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 
 const publicUrl = "https://kevinlabens-del.github.io/CR3-TIX-ADVENTURE-/";
-const socialImageUrl = `${publicUrl}icons/icon-512.png`;
+const socialImageUrl = `${publicUrl}og.png`;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     description: "Explore 110 niveaux, améliore ton héros et affronte 10 boss uniques en trois phases.",
     type: "website",
     url: publicUrl,
-    images: [{ url: socialImageUrl, alt: "CR3@TIX ADVENTURE — Explore NEXUS-7" }],
+    images: [{ url: socialImageUrl, width: 1200, height: 630, alt: "CR3@TIX ADVENTURE — Explore NEXUS-7" }],
   },
   twitter: {
     card: "summary_large_image",
