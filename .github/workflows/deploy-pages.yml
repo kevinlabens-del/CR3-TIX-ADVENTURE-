@@ -36,6 +36,8 @@ jobs:
       - name: Tester la campagne et la sauvegarde
         run: npm run test:unit
 
+      - name: Restaurer l’image de partage
+        run: cat .github/assets/og.png.part-* > public/og.png
       - name: Construire le jeu
         run: npm run build:pages
 
