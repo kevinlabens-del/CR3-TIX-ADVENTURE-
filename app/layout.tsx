@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 
+const publicUrl = "https://kevinlabens-del.github.io/CR3-TIX-ADVENTURE-/";
+const socialImageUrl = `${publicUrl}icons/icon-512.png`;
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -12,7 +15,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cr3atix-adventure.fallback-bzh.chatgpt.site"),
+  metadataBase: new URL(publicUrl),
   applicationName: "CR3@TIX ADVENTURE",
   title: "CR3@TIX ADVENTURE",
   description: "Une aventure de plateforme et de combat en 110 niveaux, avec progression, missions variées et 10 boss uniques.",
@@ -23,13 +26,14 @@ export const metadata: Metadata = {
     title: "CR3@TIX ADVENTURE",
     description: "Explore 110 niveaux, améliore ton héros et affronte 10 boss uniques en trois phases.",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "CR3@TIX ADVENTURE — Explore NEXUS-7" }],
+    url: publicUrl,
+    images: [{ url: socialImageUrl, alt: "CR3@TIX ADVENTURE — Explore NEXUS-7" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "CR3@TIX ADVENTURE",
     description: "Explore 110 niveaux, améliore ton héros et affronte 10 boss uniques en trois phases.",
-    images: ["/og.png"],
+    images: [socialImageUrl],
   },
   icons: {
     icon: [
