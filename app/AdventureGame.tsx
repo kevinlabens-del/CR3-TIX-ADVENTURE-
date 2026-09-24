@@ -121,6 +121,7 @@ export default function AdventureGame() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installMessage, setInstallMessage] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
   const [updateMessage, setUpdateMessage] = useState(`INITIALISATION · V${APP_VERSION}`);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const serviceWorkerRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
@@ -1210,6 +1211,41 @@ export default function AdventureGame() {
     setInstallPrompt(null);
     setInstallMessage(choice.outcome === "accepted" ? "INSTALLATION EN COURS…" : "INSTALLATION ANNULÉE");
   };
+  /* CR3ATIX_SHARE_V1 — action disponible uniquement dans OPTIONS, hors commandes de jeu. */
+  const shareApplication = async () => {
+    const url = "https://kevinlabens-del.github.io/CR3-TIX-ADVENTURE-/";
+    const notifyCopied = () => {
+      setShareMessage("LIEN DU JEU COPIÉ");
+      window.setTimeout(() => setShareMessage(""), 2600);
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "CR3@TIX ADVENTURE",
+          text: "Découvre CR3@TIX ADVENTURE et pars à l’assaut de 110 niveaux, 10 mondes et leurs boss.",
+          url,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    try {
+      if (window.isSecureContext && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        notifyCopied();
+        return;
+      }
+    } catch {}
+    const field = document.createElement("textarea");
+    field.value = url; field.readOnly = true; field.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+    document.body.appendChild(field); field.select(); field.setSelectionRange(0, field.value.length);
+    let copied = false; try { copied = document.execCommand("copy"); } catch {}
+    field.remove();
+    if (copied) notifyCopied();
+    else window.prompt("Copie ce lien pour partager CR3@TIX ADVENTURE :", url);
+  };
+
   const checkForUpdateNow = async () => {
     if (!("serviceWorker" in navigator)) {
       setUpdateMessage("AUTO-UPDATE NON PRIS EN CHARGE");
@@ -1344,6 +1380,11 @@ export default function AdventureGame() {
                     <span className="android-install-icon">↻</span>
                     <div><strong>MISES À JOUR AUTOMATIQUES</strong><small role="status" aria-live="polite">{updateMessage}</small></div>
                     <button onClick={checkForUpdateNow} disabled={checkingUpdate}>{checkingUpdate ? "VÉRIFICATION…" : "VÉRIFIER"}</button>
+                  </div>
+                  <div className="android-install-card">
+                    <span className="android-install-icon">↗</span>
+                    <div><strong>PARTAGER LE JEU</strong><small role="status" aria-live="polite">{shareMessage || "Lien public uniquement · aucune progression envoyée"}</small></div>
+                    <button onClick={() => void shareApplication()} aria-label="Partager CR3@TIX ADVENTURE" title="Partager le jeu">PARTAGER</button>
                   </div>
                   <div className="control-guide"><span><b>← →</b> BOUGER</span><span><b>SAUT</b> DOUBLE SAUT</span><span><b>DASH</b> ESQUIVE</span><span><b>ATQ</b> MAINTENIR = CHARGE</span><span><b>ULT</b> POUVOIR SPÉCIAL</span></div>
                 </section>}
