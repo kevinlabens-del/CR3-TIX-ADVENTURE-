@@ -24,3 +24,13 @@ test("le build GitHub Pages publie un manifeste de lancement cohérent", async (
   await access(new URL("icons/icon-512.png", outputRoot));
   await access(new URL("icons/icon-maskable-512.png", outputRoot));
 });
+
+
+test("les aperçus sociaux du build Pages sont complets", () => {
+  assert.match(html, /property="og:url" content="https:\/\/kevinlabens-del\.github\.io\/CR3-TIX-ADVENTURE-\/" \/>/);
+  assert.match(html, /property="og:image" content="https:\/\/kevinlabens-del\.github\.io\/CR3-TIX-ADVENTURE-\/og\.png" \/>/);
+  assert.match(html, /name="twitter:card" content="summary_large_image" \/>/);
+  assert.match(html, /name="twitter:title" content="CR3@TIX ADVENTURE" \/>/);
+  assert.match(html, /name="twitter:description"/);
+  assert.match(html, /name="twitter:image" content="https:\/\/kevinlabens-del\.github\.io\/CR3-TIX-ADVENTURE-\/og\.png" \/>/);
+});
